@@ -472,6 +472,11 @@
     }
 
     @media print { .notes-panel { display: none !important; } }
+
+    /* Immersive stage: blend the letterbox into the slide background and
+       drop the stage's shadow halo so no border frames the deck. */
+    html, body { background: var(--bg); }
+    .deck-stage { box-shadow: none; }
   </style>
 </head>
 <body>
