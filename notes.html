@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Speaker Notes — ICONET26</title>
+<style>
+  :root{
+    --bg:#14161A; --card:#1C1F25; --ink:#F2EFE8; --dim:#9AA0AC; --line:#2A2E36;
+    --acc:#FF7A45; --ok:#7BC98B;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    overscroll-behavior-y:none;
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    user-select:none; -webkit-user-select:none;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+  /* ---- progress ticks ---- */
+  #ticks{display:flex;gap:3px;height:4px;padding:6px 10px 0;flex:none}
+  #ticks i{flex:var(--w);background:var(--line);border-radius:2px;overflow:hidden;position:relative}
+  #ticks i::after{content:"";position:absolute;inset:0;background:var(--acc);transform:scaleX(var(--f));transform-origin:left}
+
+  /* ---- header ---- */
+  header{flex:none;padding:10px 16px 8px;border-bottom:1px solid var(--line)}
+  .hrow{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  #num{font-size:15px;font-weight:700;letter-spacing:.06em}
+  #num span{color:var(--dim);font-weight:500}
+  #title{font-size:13px;color:var(--dim);text-align:right;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chips{display:flex;gap:8px;margin-top:9px}
+  .chip{
+    flex:1;text-align:center;background:var(--card);border:1px solid var(--line);
+    border-radius:8px;padding:7px 4px;
+  }
+  .chip small{display:block;font-size:9px;letter-spacing:.14em;color:var(--dim);margin-bottom:2px}
+  .chip b{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+  #chipLeft b.warn{color:var(--acc)}
+  #chipLeft b.over{color:var(--acc)}
+  #chipPace b.ahead{color:var(--ok)}
+  #chipPace b.behind{color:var(--acc)}
+  #chipTotal{cursor:pointer}
+  #chipTotal.started b{color:var(--ink)}
+
+  /* ---- notes ---- */
+  main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 20px 12px;touch-action:pan-y}
+  #lead{
+    font-size:23px;line-height:1.3;font-weight:700;letter-spacing:-.01em;
+    padding-bottom:14px;margin-bottom:16px;border-bottom:2px solid var(--acc);
+  }
+  main p{font-size:19px;line-height:1.68;margin-bottom:16px;color:var(--ink)}
+  main p b{color:var(--acc);font-weight:700}
+  main p:last-child{margin-bottom:24px}
+
+  /* ---- next peek ---- */
+  #peek{flex:none;padding:9px 16px;border-top:1px solid var(--line);background:var(--card)}
+  #peek small{display:block;font-size:9px;letter-spacing:.16em;color:var(--dim);margin-bottom:2px}
+  #peekTxt{font-size:13px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* ---- nav buttons ---- */
+  nav{flex:none;display:flex;gap:10px;padding:10px 16px 12px}
+  nav button{
+    flex:1;height:56px;border-radius:12px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink);font-size:17px;font-weight:600;
+    touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  nav button:active{background:var(--line)}
+  nav button:disabled{opacity:.3}
+  #nextBtn{background:var(--acc);border-color:var(--acc);color:#14161A}
+  #nextBtn:active{filter:brightness(.9)}
+</style>
+</head>
+<body>
+
+<div id="ticks"></div>
+
+<header>
+  <div class="hrow">
+    <div id="num" class="mono">01 <span>/ 12</span></div>
+    <div id="title">COVER</div>
+  </div>
+  <div class="chips mono">
+    <div class="chip"><small>ALLOCATED</small><b id="chipAlloc">0:20</b></div>
+    <div class="chip" id="chipLeft"><small>BLOCK LEFT</small><b id="chipLeftV">–:––</b></div>
+    <div class="chip" id="chipPace"><small>PACE</small><b id="chipPaceV">–</b></div>
+    <div class="chip" id="chipTotal"><small>ELAPSED · TAP</small><b id="chipTotalV">START</b></div>
+  </div>
+</header>
+
+<main id="main">
+  <h1 id="lead"></h1>
+  <div id="body"></div>
+</main>
+
+<div id="peek">
+  <small>NEXT UP</small>
+  <div id="peekTxt">—</div>
+</div>
+
+<nav>
+  <button id="prevBtn">◀ Back</button>
+  <button id="nextBtn">Next ▶</button>
+</nav>
+
+<script>
+/* ============ notes data (verbatim) ============ */
+const SLIDES=[
+{t:"COVER",alloc:20,lead:"Broadband expansion under constraint.",
+ body:["Good morning. I'm Shadi Al Masry, an AOU Alumnus holding a bachelors of science in ITC with a focus on networking and security. Presenting work with <b>Ali Attar</b>, <b>Maya Dawood</b>, and <b>Mohamad El-Hajj</b>. Our question is simple: how do you expand broadband when money and infrastructure are both constrained?"]},
+{t:"PROBLEM",alloc:55,lead:"Wireless-first is becoming the default, even where fiber wins.",
+ body:["Lebanon is not a market without demand. National broadband is roughly a <b>720-million-dollar</b> market growing about <b>4.8 percent</b> a year. The problem is service: average fixed speeds stay below <b>ten megabits</b>, among the lowest globally for over a decade. And the response so far is indirect. Published plans put about <b>sixty-two percent</b> of coverage on LTE-A wireless, including stable localities where fiber economics are favorable. That locks in a choice later upgrades cannot cheaply reverse. So the real gap is procedural: Lebanon lacks a repeatable framework that ties technology choice to local financial, geographic, and demand conditions, controlling CAPEX today while preserving a credible upgrade path for tomorrow."]},
+{t:"THE 62% PLAN",alloc:25,lead:"62% of planned coverage is wireless.",
+ body:["One number makes it concrete. Ogero's <b>2025 to 2026</b> plan puts <b>sixty-two percent</b> of planned coverage on wireless, <b>twenty percent</b> FTTx, <b>eighteen percent</b> hybrid. And note the constraint behind it: national backhaul is only about <b>forty gigabits per second</b>. Wireless aggregates share that pipe heavily. This is reported data, not our measurement, but it frames the trade-off we are designing around."]},
+{t:"THREE PILLARS",alloc:50,lead:"Three pillars, extracted from four real deployments.",
+ body:["We compared four real deployments, Bluetown in Ghana, BharatNet in India, and E-Fiber in the Netherlands, against World Broadband Association guidance, and three pillars emerged. <b>Cost-aware design:</b> decisions anchored to financial viability, with redundancy reserved for infrastructure whose failure cost exceeds its protection cost. <b>Evolvability:</b> every module ships a minimum viable configuration plus a documented, low-disruption upgrade path, so capacity grows with demonstrated demand. <b>Geographic localization:</b> technology choice is a function of local terrain and density, not one national default. Crucially, none of those deployments transfers directly to Lebanon. Each solves a narrower problem. Our framework synthesizes all three."]},
+{t:"CONSTRAINT MATRIX",alloc:85,lead:"One matrix turns network design into a bounded lookup.",
+ body:["This is the core methodological move. We define a function that maps terrain class and population density to one of four standard modules. Terrain is mountainous, urban, suburban, or rural; density is homes per square kilometer. Each cell resolves to a pre-validated module, so after classification, choosing a design is an <b>O-of-1 lookup</b>, not O-of-k bespoke engineering per site. That is what lets a small team plan national coverage without headcount growing in proportion. The selection rule is revenue-driven: fiber is chosen when expected revenue density over the payback horizon exceeds the fiber-versus-wireless cost premium. Because revenue density rises and fiber cost falls with density, the threshold is monotonic: dense cells default to fiber, medium to hybrid, low-density rural to wireless. The mapping on screen is the rule of thumb; the full terrain-by-density bins are in the paper."]},
+{t:"MODULES & EVOLVABILITY",alloc:80,lead:"Four modules, lazy provisioning, and documented upgrade triggers.",
+ body:["Four modules carry the design. <b>M1</b> is the core: G.709 and XGS-PON, ERPS, 100-gig and up, <b>99.99 percent</b> availability. <b>M2</b> is deliberately dual-role, aggregation or core, 64 to 128 ports, <b>99.9 percent</b>. <b>M3</b> shares M1's electronics but differs in redundancy role. <b>W1</b> is solar-powered wireless access fed from M2 or M3. The governing rule is lazy provisioning: don't buy 99.99 percent where 99.9 is defensible, and reserve hybrid backup for core and critical backhaul. Evolvability is then a documented threshold, not a promise. The upgrade trigger is a step function of two observable variables: crossing <b>250 subscribers</b> or <b>three thousand dollars</b> a month flags the cell for its documented upgrade, for example a second fiber uplink and OLT reconfiguration toward a ring. Both thresholds are tunable policy inputs, chosen low enough that crews and financing from the rollout are still warm."]},
+{t:"EXPERIMENTAL SETUP",alloc:45,lead:"One route, three civil-works methods, with method the only variable.",
+ body:["We validated on a real Lebanese village, <b>Khalwat</b>. The comparison is controlled: one route, three civil-works methods, and method is the only independent variable. We surveyed poles from satellite imagery and the field; modeled buildings and candidate routes in QGIS with the FiberQ extension; simulated GPON with <b>32-to-1</b> splits per service area from the same nearest Ogero connection; then extracted a bill of materials dominated by total trenching length. The three methods are traditional open-cut trenching, microtrenching at up to <b>eighteen inches</b>, and a hybrid that goes aerial on existing poles wherever they exist."]},
+{t:"RESULTS · CAPEX & PAYBACK",alloc:70,lead:"Below the $100 target, with payback in about eleven years.",
+ body:["Here is what the model returns, in cost per premises passed. Traditional trenching lands at about <b>four hundred and fifty dollars</b>, four and a half times over target. Microtrenching drops to roughly <b>eighty-five</b>, and the hybrid to about <b>eighty-one</b>. The dashed line is the hundred-dollar target; both optimized methods sit inside it. Be precise about provenance: these are modeled costs from a GIS reconstruction consistent with a reported eighty-two percent reduction, not field invoices. Now hold revenue constant and vary only initial CAPEX. Traditional stays cash-flow negative across the full <b>fifteen-year</b> horizon; the optimized strategies turn positive at about <b>year eleven</b>. As an independent benchmark, Vivo in Brazil cut cost per premises passed from <b>ninety-five to thirty dollars</b> over four years through exactly this kind of iterative deployment learning."]},
+{t:"THE 82% RESULT",alloc:30,lead:"82% reduction in modeled cost per premises passed.",
+ body:["<b>Eighty-two percent</b> is the headline: modeled cost per premises passed versus traditional trenching, meeting the hundred-dollar target. Treat it as a plausible upper bound with process maturity on one village, not a guarantee. The World Broadband Association notes that operational experience is itself a cost-reduction lever, so repeated deployments should improve this figure, not degrade it."]},
+{t:"POSITIONING",alloc:30,lead:"Against three benchmark deployments.",
+ body:["Why not just copy an existing program? Bluetown is off-grid but assumes flat terrain and long line-of-sight Lebanon does not have. BharatNet teaches the evolvability lesson, linear to ring, availability from about <b>fifty to over ninety-eight percent</b>, but at national scale in a different climate. E-Fiber is the opposite extreme: well-funded universal fiber. Our framework is the synthesis for a small, mountainous, financially distressed market, threshold-driven rather than fully funded."]},
+{t:"AI-GIS & LIMITATIONS",alloc:70,lead:"LLM agents can draft GIS estimates, but not unaided.",
+ body:["One exploratory thread before I close. We probed whether a general-purpose LLM can draft GIS estimates. Given an OpenStreetMap screenshot and satellite imagery, it plausibly segmented buildings, estimated household density, and clustered them into <b>32-subscriber</b> areas. But it was unreliable unaided: no persistent access to the GIS files, no ground-truth check on housing counts, no structured access to framework conventions like splitter ratios. That motivates our proposed agent harness: a virtual filesystem over the GIS dataset plus retrieval-augmented access to the framework's own documentation. This is a qualitative probe, not a benchmark. And I'll be candid about what we don't claim yet: unit costs are primarily North American, some last-mile costs are excluded, and validation rests on one village. The framework is a decision structure awaiting local calibration, which is exactly our future work with Lebanese ISP data."]},
+{t:"CONCLUSION",alloc:30,lead:"Constraint is a design input, not a verdict.",
+ body:["To close: the barrier to better broadband here was procedural, not technological. A two-dimensional matrix maps terrain and density to four modules with documented upgrade triggers, cutting modeled cost per premises passed by up to <b>eighty-two percent</b> and reaching payback in about <b>eleven years</b>. Constraint is a design input, not a verdict. Thank you. I'm happy to take questions."]}
+];
+
+const TOTAL=SLIDES.reduce((a,s)=>a+s.alloc,0);      // 590 s = 9:50
+const STARTS=[]; SLIDES.reduce((a,s,i)=>(STARTS[i]=a,a+s.alloc),0);
+
+/* ============ build progress ticks ============ */
+const ticks=document.getElementById('ticks');
+SLIDES.forEach(s=>{
+  const i=document.createElement('i');
+  i.style.setProperty('--w',s.alloc);
+  i.style.setProperty('--f',0);
+  ticks.appendChild(i);
+});
+const tickEls=[...ticks.children];
+
+/* ============ state & elements ============ */
+let idx=0, started=false, t0=0;
+const $=id=>document.getElementById(id);
+const fmt=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+const pad2=n=>String(n).padStart(2,"0");
+
+function render(){
+  const s=SLIDES[idx];
+  $("num").innerHTML=pad2(idx+1)+" <span>/ "+SLIDES.length+"</span>";
+  $("title").textContent=s.t;
+  $("lead").textContent=s.lead;
+  $("body").innerHTML=s.body.map(p=>"<p>"+p+"</p>").join("");
+  $("main").scrollTop=0;
+  $("chipAlloc").textContent=fmt(s.alloc);
+  $("peekTxt").textContent=idx<SLIDES.length-1?SLIDES[idx+1].lead:"— end of talk —";
+  $("prevBtn").disabled=idx===0;
+  $("nextBtn").disabled=idx===SLIDES.length-1;
+  tickEls.forEach((el,i)=>{
+    el.style.setProperty('--f', i<idx?1:0);
+  });
+}
+function go(i){ idx=Math.max(0,Math.min(SLIDES.length-1,i)); render(); }
+
+/* ============ timer & pace ============ */
+function startClock(){
+  if(started)return;
+  started=true; t0=Date.now();
+  $("chipTotal").classList.add("started");
+  if("wakeLock" in navigator){ navigator.wakeLock.request("screen").catch(()=>{}); }
+}
+ $("chipTotal").addEventListener("click",startClock);
+
+setInterval(()=>{
+  // tick fills
+  if(started){
+    const e=(Date.now()-t0)/1000;
+    tickEls.forEach((el,i)=>{
+      const s=STARTS[i], end=s+SLIDES[i].alloc;
+      const f=e<=s?0:e>=end?1:(e-s)/SLIDES[i].alloc;
+      el.style.setProperty('--f',f);
+    });
+  }
+  // header chips
+  const s=SLIDES[idx], bs=STARTS[idx], be=bs+s.alloc;
+  if(started){
+    const e=(Date.now()-t0)/1000;
+    $("chipTotalV").textContent=fmt(e);
+    const left=be-e;
+    $("chipLeftV").textContent=fmt(left);
+    $("chipLeftV").className=left<=10?"warn":"";
+    if(e<bs){ $("chipPaceV").textContent="+"+fmt(bs-e); $("chipPaceV").className="ahead"; }
+    else if(e>be){ $("chipPaceV").textContent="-"+fmt(e-be); $("chipPaceV").className="behind"; }
+    else { $("chipPaceV").textContent="ON PACE"; $("chipPaceV").className=""; }
+  }else{
+    $("chipTotalV").textContent="START";
+    $("chipLeftV").textContent=fmt(s.alloc);
+    $("chipPaceV").textContent="–";
+  }
+},500);
+
+// re-acquire wake lock when returning to the tab
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden && started && "wakeLock" in navigator){
+    navigator.wakeLock.request("screen").catch(()=>{});
+  }
+});
+
+/* ============ navigation: buttons, swipe, keys ============ */
+ $("nextBtn").addEventListener("click",()=>{startClock();go(idx+1)});
+ $("prevBtn").addEventListener("click",()=>go(idx-1));
+
+let x0=null,y0=null;
+document.addEventListener("touchstart",e=>{
+  x0=e.touches[0].clientX; y0=e.touches[0].clientY;
+},{passive:true});
+document.addEventListener("touchend",e=>{
+  if(x0===null)return;
+  const dx=e.changedTouches[0].clientX-x0, dy=e.changedTouches[0].clientY-y0;
+  if(Math.abs(dx)>60 && Math.abs(dx)>Math.abs(dy)*1.5){
+    startClock(); dx<0?go(idx+1):go(idx-1);
+  }
+  x0=null;
+},{passive:true});
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowRight"||e.key===" "){e.preventDefault();startClock();go(idx+1);}
+  else if(e.key==="ArrowLeft"){go(idx-1);}
+});
+
+/* ============ boot ============ */
+render();
+</script>
+</body>
+</html>
